@@ -308,11 +308,7 @@ justify-content:center;
       <button class="btn btn-ghost" style="font-size:13px" onclick="resetCheck()">↩ Tra lại</button>
       <button class="btn btn-primary" style="font-size:13px" id="btn-refresh" onclick="refreshStatus()">🔄 Tải lại (5)</button>
     </div>
-    <!-- Hàng nút thao tác: Hối thúc + Theo dõi qua Telegram, 2 cột. -->
-    <div id="urg-row" class="action-row" style="margin-bottom:8px">
-      <button class="btn btn-gold" id="btn-urg-main" style="font-size:14px" onclick="urgOnce()">⚡ Hối thúc HĐ</button>
-      <button class="btn btn-tg" id="btn-follow-tg" style="font-size:14px" onclick="followTg()">🔔 Theo dõi TG</button>
-    </div>
+    <button class="btn btn-gold" id="btn-urg-main" style="width:100%;max-width:600px;margin-bottom:8px;font-size:14px" onclick="urgOnce()">⚡ Hối thúc &amp; Theo dõi qua Telegram</button>
     <a href="https://t.me/st666cskh247" target="_blank" class="btn btn-tg" style="width:100%;max-width:500px;margin-bottom:8px">✈️ Liên hệ CSKH Telegram</a>
   </div>
 
@@ -581,7 +577,7 @@ function resetCheck(){
     // Reset urg button
     urgSent=false;
     var ub=document.getElementById('btn-urg-main');
-    if(ub){ub.disabled=false;ub.innerHTML='⚡ Hối thúc HĐ';}
+    if(ub){ub.disabled=false;ub.innerHTML='⚡ Hối thúc &amp; Theo dõi qua Telegram';}
 
     window.scrollTo({top:0, behavior:'smooth'});
   }catch(e){
@@ -642,79 +638,61 @@ async function refreshStatus(){
   },1000);
 }
 
-// ── Theo dõi qua Telegram ─────────────────────────────────────────
-function followTg(){
-  var btn=document.getElementById('btn-follow-tg');
-  if(btn.disabled)return;
-  var win=window.open('about:blank'); // mở NGAY trong click, tránh popup blocker
-  var u=ST.u||(document.getElementById('inp-u')?.value||'').trim();
-  var ck=ST.ck||(document.getElementById('inp-ck')?.value||'').trim();
-  if(!u){toast('⚠️ Thiếu tên đăng nhập','w');if(win)win.close();return;}
-  btn.disabled=true;var oldHtml=btn.innerHTML;btn.innerHTML='<span class="spin"></span> Đang tạo link...';
-  var fd=new URLSearchParams();
-  fd.append('username',u);
-  fd.append('transferContent',ck);
-  fetch(CFG.api+'/api/follow-invoice',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd,signal:AbortSignal.timeout(15000)})
-    .then(function(res){return res.json()})
-    .then(function(d){
-      btn.disabled=false;btn.innerHTML=oldHtml;
-      if(d && d.ok && d.link){
-        if(win)win.location=d.link; else window.open(d.link,'_blank');
-        toast('✅ Đã mở Telegram — bấm Start để theo dõi','s');
-      } else {
-        if(win)win.close();
-        toast('⚠️ '+(d&&d.error?d.error:'Không thể tạo link theo dõi'),'e');
-      }
-    })
-    .catch(function(){
-      btn.disabled=false;btn.innerHTML=oldHtml;
-      if(win)win.close();
-      toast('⚠️ Lỗi kết nối, vui lòng thử lại','e');
-    });
-}
-
-// ── Hối thúc one-time ──────────────────────────────────────────────
+// ── Hối thúc + Theo dõi (gộp 1 nút) ────────────────────────────────
 var urgSent=false;
 
 function urgOnce(){
   if(urgSent)return;
-  // Collect fullname, chờ response rồi mới hiện modal
+  // Lấy họ tên trước, xong mới chạy luồng gộp
   openUrgentModal(async function(fullname){
-    // Disable button ngay để tránh double click
     urgSent=true;
     var ub=document.getElementById('btn-urg-main');
-    if(ub){ub.disabled=true;ub.innerHTML='<span class="spin"></span> Đang gửi...';}
+    if(ub){ub.disabled=true;ub.innerHTML='<span class="spin spin-dark"></span> Đang gửi...';}
 
+    var u=ST.u||(document.getElementById('inp-u')?.value||'').trim();
+    var ck=ST.ck||(document.getElementById('inp-ck')?.value||'').trim();
+
+    // Mở tab trống NGAY trong sự kiện click (bấm "Xác nhận" vẫn tính là thao
+    // tác của người dùng). Nếu mở sau await sẽ bị trình duyệt chặn popup.
+    var win=window.open('','_blank');
+
+    // ── Bước 1: lấy token + link theo dõi (nhanh, đồng bộ) ────────────
+    var followToken=null,followLink=null;
     try{
-      var u=ST.u||(document.getElementById('inp-u')?.value||'').trim();
-      var ck=ST.ck||(document.getElementById('inp-ck')?.value||'').trim();
+      var r1=await fetch(CFG.api+'/api/follow-invoice',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({username:u,transferContent:ck}),
+        signal:AbortSignal.timeout(12000)
+      });
+      var d1=await r1.json();
+      if(d1&&d1.ok&&d1.link){followToken=d1.token;followLink=d1.link;}
+    }catch(e){console.log('Follow link err',e);}
+
+    // ── Bước 2: gửi hối thúc kèm token ────────────────────────────────
+    try{
       var fd=new FormData();
       fd.append('username',u);
       fd.append('fullname',fullname);
       fd.append('transferContent',ck);
+      if(followToken)fd.append('followToken',followToken);
       var imgFile=ST.imgFile||(urgFile);
       if(imgFile)fd.append('image',imgFile);
-
-      var res=await fetch(CFG.api+'/api/urgent-invoice',{method:'POST',body:fd,signal:AbortSignal.timeout(30000)});
-      var data=await res.json();
-
-      // Đơn đã lên điểm → cập nhật màn hình chính + hiện modal thông báo
-      if(data && data.alreadyCredited){
-        // Cập nhật màn hình kết quả chính sang trạng thái "đã lên điểm"
-        showResult(true, '✅ Đã lên điểm', data.message || 'Đơn nạp của bạn đã được ghi nhận. Vui lòng kiểm tra số dư tài khoản.');
-        if(ub){ub.innerHTML='✅ Đã lên điểm';}
-        return;
-      }
-
-      // Bình thường → show "Đã gửi hối thúc"
-      document.getElementById('urg-sent-modal').style.display='flex';
-      if(ub){ub.innerHTML='✅ Đã gửi hối thúc';}
-
+      await fetch(CFG.api+'/api/urgent-invoice',{method:'POST',body:fd,signal:AbortSignal.timeout(30000)});
     }catch(e){
       console.log('Urg send err',e);
-      // Lỗi mạng → vẫn show thành công (không để khách lo lắng)
-      document.getElementById('urg-sent-modal').style.display='flex';
+    }
+
+    // ── Bước 3: đưa khách sang Telegram ───────────────────────────────
+    if(followLink){
+      if(win){win.location.href=followLink}else{window.open(followLink,'_blank')}
+      if(ub){ub.innerHTML='✅ Đã gửi · Bấm Start trên Telegram';}
+      toast('🔔 Bấm Start trong Telegram để nhận kết quả','s');
+    }else{
+      // Không tạo được link theo dõi -> vẫn đã gửi hối thúc, quay về luồng cũ
+      if(win)win.close();
       if(ub){ub.innerHTML='✅ Đã gửi hối thúc';}
+      document.getElementById('urg-sent-modal').style.display='flex';
     }
   });
 }
