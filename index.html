@@ -242,17 +242,15 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Be
   </div>
 
   <div class="steps-bar">
-    <div class="step-dot active" id="s1"><div class="step-circle">1</div><span class="step-label">Tài khoản</span></div>
+    <div class="step-dot active" id="s1"><div class="step-circle">1</div><span class="step-label">Khai hóa đơn</span></div>
     <div class="step-line" id="sl1"></div>
-    <div class="step-dot" id="s2"><div class="step-circle">2</div><span class="step-label">Hóa đơn</span></div>
-    <div class="step-line" id="sl2"></div>
-    <div class="step-dot" id="s3"><div class="step-circle">3</div><span class="step-label">Kết quả</span></div>
+    <div class="step-dot" id="s2"><div class="step-circle">2</div><span class="step-label">Kết quả</span></div>
   </div>
 
   <div class="card" id="step1">
     <div class="card-head">
-      <div class="card-icon" style="background:rgba(232,25,44,.08)">👤</div>
-      <div><div class="card-title">Thông tin tài khoản</div><div class="card-subtitle">Bước 1 / 2</div></div>
+      <div class="card-icon" style="background:rgba(232,25,44,.08)">🧾</div>
+      <div><div class="card-title">Thông tin tra cứu</div><div class="card-subtitle">Bước 1 / 2 · Điền đủ 3 mục bên dưới</div></div>
     </div>
     <div class="card-body">
       <div class="field">
@@ -260,17 +258,6 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Be
         <input class="input" id="inp-u" placeholder="VD: myhanh1233" autocomplete="off" autocapitalize="none">
         <div class="hint">💡 Tên bạn dùng để đăng nhập vào ST666</div>
       </div>
-      
-      <button class="btn btn-primary" onclick="go2()">Tiếp theo →</button>
-    </div>
-  </div>
-
-  <div class="card" id="step2" style="display:none">
-    <div class="card-head">
-      <div class="card-icon" style="background:rgba(79,142,247,.08)">🧾</div>
-      <div><div class="card-title">Thông tin hóa đơn</div><div class="card-subtitle">Bước 2 / 2</div></div>
-    </div>
-    <div class="card-body">
       <div class="field">
         <div class="field-label">Ảnh hóa đơn chuyển khoản <span class="req">*</span></div>
         <div class="upload-zone" id="uz" ondragover="dov(event)" ondragleave="dlv(event)" ondrop="ddp(event)">
@@ -290,10 +277,7 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Be
         <div style="font-size:12.5px;color:var(--text2);line-height:1.65">Mã giao dịch / nội dung chuyển khoản này<br><b style="color:var(--red)">đã được tra cứu bởi tài khoản khác</b> trước đó.<br><br>Nếu đây là giao dịch của bạn, liên hệ CSKH ngay.</div>
         <a href="https://t.me/st666cskh247" target="_blank" class="btn btn-tg" style="margin-top:12px;font-size:13px">✈️ Liên hệ CSKH Telegram</a>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:0 0 auto;width:auto;padding:13px 16px;font-size:13px" onclick="go1()">← Quay lại</button>
-        <button class="btn btn-primary" id="btn-chk" onclick="doCheck()" style="flex:1">🔍 Kiểm tra ngay</button>
-      </div>
+      <button class="btn btn-primary" id="btn-chk" onclick="doCheck()">🔍 Kiểm tra ngay</button>
     </div>
   </div>
 
@@ -324,7 +308,13 @@ justify-content:center;
       <button class="btn btn-ghost" style="font-size:13px" onclick="resetCheck()">↩ Tra lại</button>
       <button class="btn btn-primary" style="font-size:13px" id="btn-refresh" onclick="refreshStatus()">🔄 Tải lại (5)</button>
     </div>
-    <button class="btn btn-gold" id="btn-urg-main" style="width:100%;max-width:600px;margin-bottom:8px;font-size:14px" onclick="urgOnce()">⚡ Hối thúc HĐ</button>
+    <!-- Hàng nút thao tác. Nút "Theo dõi qua Telegram" đang ẩn (display:none).
+         Khi backend /api/follow-invoice sẵn sàng: xoá style="display:none" ở #btn-follow-tg
+         và đổi id="urg-row" thành class="action-row" để 2 nút nằm 2 cột. -->
+    <div id="urg-row" style="width:100%;max-width:600px;margin-bottom:8px">
+      <button class="btn btn-gold" id="btn-urg-main" style="font-size:14px" onclick="urgOnce()">⚡ Hối thúc HĐ</button>
+      <button class="btn btn-tg" id="btn-follow-tg" style="display:none;font-size:14px;margin-top:8px" onclick="followTg()">🔔 Theo dõi qua Telegram</button>
+    </div>
     <a href="https://t.me/st666cskh247" target="_blank" class="btn btn-tg" style="width:100%;max-width:500px;margin-bottom:8px">✈️ Liên hệ CSKH Telegram</a>
   </div>
 
@@ -425,26 +415,21 @@ var urgFile=null,fabOpen=false,toastT;
 // ── Steps ──────────────────────────────────────────────────────────
 function setStep(n){
   ST.step=n;
-  ['s1','s2','s3'].forEach(function(id,i){
-    var el=document.getElementById(id);el.classList.remove('active','done');
+  ['s1','s2'].forEach(function(id,i){
+    var el=document.getElementById(id);if(!el)return;el.classList.remove('active','done');
     if(i+1<n)el.classList.add('done');else if(i+1===n)el.classList.add('active');
   });
-  ['sl1','sl2'].forEach(function(id,i){document.getElementById(id).classList.toggle('done',i+1<n)});
+  var sl1=document.getElementById('sl1');if(sl1)sl1.classList.toggle('done',n>1);
 }
 function show(ids){
-  ['step1','step2'].forEach(function(id){document.getElementById(id).style.display=ids.includes(id)?'':'none'});
+  document.getElementById('step1').style.display=ids.includes('step1')?'':'none';
   var s3=document.getElementById('step3');
   s3.style.display=ids.includes('step3')?'flex':'none';
   if(ids.includes('step3'))s3.style.flexDirection='column';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function go1(){setStep(1);show(['step1'])}
-function go2(){
-  var u=document.getElementById('inp-u').value.trim();
-  if(!u){toast('⚠️ Vui lòng nhập tên đăng nhập','w');document.getElementById('inp-u').focus();return}
-  ST.u=u;setStep(2);show(['step2']);
-}
-function go3(){setStep(3);show(['step3'])}
+function go3(){setStep(2);show(['step3'])}
 function reset(){ return resetCheck(); }
 function __old_reset_unused(){
   ST={u:'',ck:'',imgFile:null,imgUrl:null,step:1};
@@ -489,10 +474,12 @@ function cupl(t){
 
 // ── Check ──────────────────────────────────────────────────────────
 async function doCheck(){
-  if(!ST.imgFile){toast('⚠️ Vui lòng tải ảnh hóa đơn','w');return}
+  var u=document.getElementById('inp-u').value.trim();
+  if(!u){toast('⚠️ Vui lòng nhập tên đăng nhập','w');document.getElementById('inp-u').focus();return}
+  if(!ST.imgFile){toast('⚠️ Vui lòng tải ảnh hóa đơn','w');document.getElementById('uz').scrollIntoView({block:'center',behavior:'smooth'});return}
   var ck=document.getElementById('inp-ck').value.trim();
   if(!ck){toast('⚠️ Vui lòng nhập mã giao dịch','w');document.getElementById('inp-ck').focus();return}
-  ST.ck=ck;
+  ST.u=u;ST.ck=ck;
   var btn=document.getElementById('btn-chk');btn.disabled=true;btn.innerHTML='<span class="spin"></span> Đang kiểm tra...';
   try{
     var fd=new FormData();fd.append('username',ST.u);    fd.append('fullname', (document.getElementById('fullname')?.value || '-').trim() || '-');
@@ -558,13 +545,12 @@ function toast(msg,t){
   el.innerHTML=msg;el.style.display='flex';el.style.borderColor=c[t]||'var(--border2)';
   clearTimeout(toastT);toastT=setTimeout(function(){el.style.display='none'},3000);
 }
-document.getElementById('inp-u').onkeydown=function(e){if(e.key==='Enter')go2()};
+document.getElementById('inp-u').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();document.getElementById('inp-ck').focus()}};
 document.getElementById('inp-ck').onkeydown=function(e){if(e.key==='Enter')doCheck()};
 
 function resetCheck(){
   try{
     document.getElementById('step1').style.display='block';
-    document.getElementById('step2').style.display='none';
 
     var step3 = document.getElementById('step3');
     if(step3){
@@ -576,14 +562,7 @@ function resetCheck(){
     if(rf) rf.style.display='none';
     if(rnf) rnf.style.display='none';
 
-    var s1=document.getElementById('s1'), s2=document.getElementById('s2'), s3=document.getElementById('s3');
-    var sl1=document.getElementById('sl1'), sl2=document.getElementById('sl2');
-
-    if(s1) s1.classList.add('active');
-    if(s2) s2.classList.remove('active');
-    if(s3) s3.classList.remove('active');
-    if(sl1) sl1.classList.remove('active');
-    if(sl2) sl2.classList.remove('active');
+    setStep(1);
 
     var inpCk = document.getElementById('inp-ck');
     var inpImg = document.getElementById('inp-img');
@@ -663,6 +642,14 @@ async function refreshStatus(){
       btn.innerHTML='⏳ Chờ '+cd+'s...';
     }
   },1000);
+}
+
+// ── Theo dõi qua Telegram (chờ backend) ────────────────────────────
+// TODO: khi có route /api/follow-invoice thì thay phần thân hàm này bằng
+// fetch(CFG.api+'/api/follow-invoice', {...}) gửi kèm ST.u và ST.ck,
+// rồi mở deep link t.me/<bot>?start=<token> trả về từ server.
+function followTg(){
+  toast('🔔 Tính năng đang được cập nhật','w');
 }
 
 // ── Hối thúc one-time ──────────────────────────────────────────────
