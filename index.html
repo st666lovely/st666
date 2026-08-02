@@ -112,6 +112,34 @@ html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Be
 .btn-tg{background:linear-gradient(135deg,#229ED9,#0088cc);color:#fff;box-shadow:0 3px 12px rgba(34,158,217,.2)}
 .btn-tg:hover{transform:translateY(-1px)}
 
+/* ── Nút nổi bật: Lên Điểm Qua Telegram ── */
+/* Muốn đổi sang tông xanh lá thì thay 2 mã màu trong background bằng
+   #00c853 và #009e44, và đổi rgba(255,59,48,...) thành rgba(0,200,83,...) */
+.btn-hot{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#ff9500,#ff3b30 55%,#e8192c);
+  color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.18);
+  box-shadow:0 4px 16px rgba(255,59,48,.4);
+  animation:hotPulse 2.2s ease-in-out infinite;
+}
+.btn-hot:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 26px rgba(255,59,48,.55)}
+.btn-hot:disabled{opacity:.6;cursor:not-allowed;transform:none;animation:none}
+@keyframes hotPulse{
+  0%,100%{box-shadow:0 4px 16px rgba(255,59,48,.4)}
+  50%{box-shadow:0 4px 26px rgba(255,59,48,.65),0 0 0 5px rgba(255,59,48,.10)}
+}
+/* vệt sáng chạy ngang cho bắt mắt */
+.btn-hot::after{
+  content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;
+  pointer-events:none;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,.45),transparent);
+  transform:skewX(-20deg);
+  animation:hotShine 3.2s ease-in-out infinite;
+}
+@keyframes hotShine{0%{left:-60%}55%{left:130%}100%{left:130%}}
+@media(prefers-reduced-motion:reduce){.btn-hot,.btn-hot::after{animation:none}}
+
 /* ── Result ── */
 .result-card{width:100%;max-width:500px;border-radius:18px;padding:22px;margin-bottom:12px;box-shadow:var(--shadow);animation:popIn .35s ease;align-self:center}
 @keyframes popIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
@@ -304,10 +332,8 @@ justify-content:center;
       <div class="result-status" style="color:var(--red)">Hóa đơn chưa được cập nhật</div>
       <div style="font-size:13px;color:var(--text2);text-align:center;line-height:1.7;padding:4px 0">Hóa đơn chưa được cung cấp CSKH tiếp nhận cập nhật vào dữ liệu tra cứu.<br>Vui lòng gửi hóa đơn cho CSKH bằng cách bấm hối thúc để được xử lý nhanh hơn.</div>
     </div>
-    <div class="action-row">
-      <button class="btn btn-ghost" style="font-size:13px" onclick="resetCheck()">↩ Tra lại</button>
-    </div>
-    <button class="btn btn-gold" id="btn-urg-main" style="width:100%;max-width:600px;margin-bottom:8px;font-size:14px" onclick="urgOnce()">⚡Lên Điểm Qua Telegram</button>
+    <button class="btn btn-ghost" style="width:100%;max-width:500px;margin-bottom:8px;font-size:14px" onclick="resetCheck()">↩ Tra lại</button>
+    <button class="btn btn-hot" id="btn-urg-main" style="width:100%;max-width:500px;margin-bottom:8px;font-size:14px" onclick="urgOnce()">⚡Lên Điểm Qua Telegram</button>
     <a href="https://t.me/st666cskh247" target="_blank" class="btn btn-tg" style="width:100%;max-width:500px;margin-bottom:8px">✈️ Liên hệ CSKH Telegram</a>
   </div>
 
@@ -646,7 +672,7 @@ function urgOnce(){
   openUrgentModal(async function(fullname){
     urgSent=true;
     var ub=document.getElementById('btn-urg-main');
-    if(ub){ub.disabled=true;ub.innerHTML='<span class="spin spin-dark"></span> Đang gửi...';}
+    if(ub){ub.disabled=true;ub.innerHTML='<span class="spin"></span> Đang gửi...';}
 
     var u=ST.u||(document.getElementById('inp-u')?.value||'').trim();
     var ck=ST.ck||(document.getElementById('inp-ck')?.value||'').trim();
@@ -684,7 +710,30 @@ function urgOnce(){
 
     // ── Bước 3: đưa khách sang Telegram ───────────────────────────────
     if(followLink){
-      if(win){win.location.href=followLink}else{window.open(followLink,'_blank')}
+      // Ưu tiên mở THẲNG app Telegram bằng scheme tg:// để bỏ qua trang web
+      // trung gian t.me (trang bắt bấm nút OPEN). Nếu sau 1.5s mà vẫn chưa
+      // rời khỏi trình duyệt (chưa cài Telegram, trình duyệt chặn scheme,
+      // máy tính không có app...) thì tự quay về link web như cũ.
+      var m=followLink.match(/^https:\/\/t\.me\/([^?]+)\?start=(.+)$/);
+      var appLink=m?('tg://resolve?domain='+m[1]+'&start='+m[2]):null;
+
+      if(win&&appLink){
+        var jumped=false;
+        var onHide=function(){if(document.hidden)jumped=true;};
+        document.addEventListener('visibilitychange',onHide);
+        try{win.location.href=appLink;}catch(e){}
+        setTimeout(function(){
+          document.removeEventListener('visibilitychange',onHide);
+          if(jumped)return;                       // app đã mở, khỏi làm gì thêm
+          try{win.location.href=followLink;}      // dự phòng: dùng link web
+          catch(e){window.open(followLink,'_blank');}
+        },1500);
+      }else if(win){
+        win.location.href=followLink;
+      }else{
+        window.open(followLink,'_blank');
+      }
+
       if(ub){ub.innerHTML='✅ Đã gửi · Bấm Start trên Telegram';}
       toast('🔔 Bấm Start trong Telegram để nhận kết quả','s');
     }else{
