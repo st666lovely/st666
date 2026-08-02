@@ -308,12 +308,10 @@ justify-content:center;
       <button class="btn btn-ghost" style="font-size:13px" onclick="resetCheck()">↩ Tra lại</button>
       <button class="btn btn-primary" style="font-size:13px" id="btn-refresh" onclick="refreshStatus()">🔄 Tải lại (5)</button>
     </div>
-    <!-- Hàng nút thao tác. Nút "Theo dõi qua Telegram" đang ẩn (display:none).
-         Khi backend /api/follow-invoice sẵn sàng: xoá style="display:none" ở #btn-follow-tg
-         và đổi id="urg-row" thành class="action-row" để 2 nút nằm 2 cột. -->
-    <div id="urg-row" style="width:100%;max-width:600px;margin-bottom:8px">
+    <!-- Hàng nút thao tác: Hối thúc + Theo dõi qua Telegram, 2 cột. -->
+    <div id="urg-row" class="action-row" style="margin-bottom:8px">
       <button class="btn btn-gold" id="btn-urg-main" style="font-size:14px" onclick="urgOnce()">⚡ Hối thúc HĐ</button>
-      <button class="btn btn-tg" id="btn-follow-tg" style="display:none;font-size:14px;margin-top:8px" onclick="followTg()">🔔 Theo dõi qua Telegram</button>
+      <button class="btn btn-tg" id="btn-follow-tg" style="font-size:14px" onclick="followTg()">🔔 Theo dõi TG</button>
     </div>
     <a href="https://t.me/st666cskh247" target="_blank" class="btn btn-tg" style="width:100%;max-width:500px;margin-bottom:8px">✈️ Liên hệ CSKH Telegram</a>
   </div>
@@ -644,12 +642,35 @@ async function refreshStatus(){
   },1000);
 }
 
-// ── Theo dõi qua Telegram (chờ backend) ────────────────────────────
-// TODO: khi có route /api/follow-invoice thì thay phần thân hàm này bằng
-// fetch(CFG.api+'/api/follow-invoice', {...}) gửi kèm ST.u và ST.ck,
-// rồi mở deep link t.me/<bot>?start=<token> trả về từ server.
+// ── Theo dõi qua Telegram ─────────────────────────────────────────
 function followTg(){
-  toast('🔔 Tính năng đang được cập nhật','w');
+  var btn=document.getElementById('btn-follow-tg');
+  if(btn.disabled)return;
+  var win=window.open('about:blank'); // mở NGAY trong click, tránh popup blocker
+  var u=ST.u||(document.getElementById('inp-u')?.value||'').trim();
+  var ck=ST.ck||(document.getElementById('inp-ck')?.value||'').trim();
+  if(!u){toast('⚠️ Thiếu tên đăng nhập','w');if(win)win.close();return;}
+  btn.disabled=true;var oldHtml=btn.innerHTML;btn.innerHTML='<span class="spin"></span> Đang tạo link...';
+  var fd=new URLSearchParams();
+  fd.append('username',u);
+  fd.append('transferContent',ck);
+  fetch(CFG.api+'/api/follow-invoice',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:fd,signal:AbortSignal.timeout(15000)})
+    .then(function(res){return res.json()})
+    .then(function(d){
+      btn.disabled=false;btn.innerHTML=oldHtml;
+      if(d && d.ok && d.link){
+        if(win)win.location=d.link; else window.open(d.link,'_blank');
+        toast('✅ Đã mở Telegram — bấm Start để theo dõi','s');
+      } else {
+        if(win)win.close();
+        toast('⚠️ '+(d&&d.error?d.error:'Không thể tạo link theo dõi'),'e');
+      }
+    })
+    .catch(function(){
+      btn.disabled=false;btn.innerHTML=oldHtml;
+      if(win)win.close();
+      toast('⚠️ Lỗi kết nối, vui lòng thử lại','e');
+    });
 }
 
 // ── Hối thúc one-time ──────────────────────────────────────────────
