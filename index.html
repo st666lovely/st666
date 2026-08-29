@@ -685,8 +685,18 @@ var urgSent=false;
 
 function urgOnce(){
   if(urgSent)return;
-  // Lấy họ tên trước, xong mới chạy luồng gộp
-  openUrgentModal(async function(fullname){
+
+  /* Họ tên đã điền ở bước 1 rồi, không hỏi lại nữa.
+     Thiếu vì lý do nào đó thì mới mở hộp thoại hỏi. */
+  var tenDaCo = ST.name || chuanTen(document.getElementById('inp-name')?.value || '');
+  if (tenDaCo.length >= 2) { chayHoiThuc(tenDaCo); return; }
+
+  openUrgentModal(function(fullname){ chayHoiThuc(fullname); });
+}
+
+function chayHoiThuc(fullname){
+  return (async function(){
+    if(urgSent)return;
     urgSent=true;
     var ub=document.getElementById('btn-urg-main');
     if(ub){ub.disabled=true;ub.innerHTML='<span class="spin"></span> Đang gửi...';}
